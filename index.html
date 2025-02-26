@@ -1,0 +1,343 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Suraj Kumar Mandal Dhanuk Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        transition: background-color 0.5s, color 0.5s;
+      }
+      .fade-in {
+        animation: fadeIn 2s ease-in-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      .hover-animate:hover {
+        transform: scale(1.05);
+        transition: transform 0.3s;
+      }
+      .dark-mode {
+        background-color: #1a202c;
+        color: #cbd5e0;
+      }
+      .slider {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+      }
+      .slider > div {
+        scroll-snap-align: start;
+        flex: none;
+        width: 100%;
+        max-width: 300px;
+        margin-right: 16px;
+      }
+      .slider::-webkit-scrollbar {
+        display: none;
+      }
+      .experience-section {
+        position: relative;
+      }
+      .experience-content {
+        position: relative;
+        z-index: 2;
+      }
+      .experience-heading {
+        background: linear-gradient(to right, #4a90e2, #9013fe);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .experience-duration {
+        font-size: 0.875rem;
+        color: #6b7280;
+      }
+    </style>
+    <script>
+      function toggleDarkMode() {
+        document.body.classList.toggle("dark-mode");
+        const icon = document.getElementById("darkModeIcon");
+        if (document.body.classList.contains("dark-mode")) {
+          icon.classList.remove("fa-moon");
+          icon.classList.add("fa-sun");
+        } else {
+          icon.classList.remove("fa-sun");
+          icon.classList.add("fa-moon");
+        }
+      }
+    </script>
+  </head>
+  <body class="bg-gradient-to-r from-blue-100 to-purple-100 text-gray-800">
+    <!-- Header -->
+    <header class="bg-white shadow-md">
+      <div
+        class="container mx-auto px-4 py-4 flex justify-between items-center"
+      >
+        <div class="text-sm font-semibold">Suraj Kumar Mandal Dhanuk</div>
+        <nav class="space-x-4">
+          <a class="text-gray-600 hover:text-gray-900" href="#about"> About </a>
+          <a class="text-gray-600 hover:text-gray-900" href="#projects">
+            Projects
+          </a>
+          <a class="text-gray-600 hover:text-gray-900" href="#skills">
+            Skills
+          </a>
+          <a class="text-gray-600 hover:text-gray-900" href="#experience">
+            Experience
+          </a>
+          <a class="text-gray-600 hover:text-gray-900" href="#contact">
+            Contact
+          </a>
+        </nav>
+        <i
+          class="fas fa-moon text-gray-800 cursor-pointer"
+          id="darkModeIcon"
+          onclick="toggleDarkMode()"
+        >
+        </i>
+      </div>
+    </header>
+    <!-- Hero Section -->
+    <section class="container mx-auto px-4 py-16 text-center fade-in">
+      <div class="text-sm text-gray-500 mb-2">
+        👋 Hi, my name is Suraj Kumar Mandal Dhanuk
+      </div>
+      <h1 class="text-4xl font-bold mb-4">
+        Third-year B.Tech CSE student specializing in AI and ML
+      </h1>
+      <div class="flex justify-center items-center space-x-4 mb-8">
+        <a
+          class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover-animate"
+          href="https://drive.google.com/file/d/1M1iI8Wd2e9jV57h0qsTmfv50XiTo-Qfn/view?usp=sharing"
+          target="_blank"
+        >
+          Download CV
+        </a>
+        <a
+          class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover-animate"
+          href="#about"
+        >
+          About me
+        </a>
+      </div>
+      <img
+        alt="Suraj Kumar Mandal Dhanuk"
+        class="mx-auto rounded-lg shadow-lg hover-animate"
+        height="400"
+        src="https://i.postimg.cc/ZqJBBxtN/pp3.png"
+        width="600"
+      />
+    </section>
+    <!-- About Section -->
+    <section
+      class="container mx-auto px-4 py-16 text-center fade-in"
+      id="about"
+    >
+      <h2 class="text-2xl font-bold mb-4">About Me</h2>
+      <p class="text-gray-600 mb-8">
+        I am a third-year B.Tech CSE student specializing in AI and ML at SRM
+        University AP. Expected Graduation May 2026. CGPA: 9.07/10.
+      </p>
+      <p class="text-gray-600 mb-8">
+        Coursework: Data Structure and Algorithm, Computer Architecture and
+        Organization, Operating Systems, Database Management Systems, Computer
+        Networks, Machine Learning.
+      </p>
+    </section>
+    <!-- Projects Section -->
+    <section class="container mx-auto px-4 py-16 fade-in" id="projects">
+      <h2 class="text-2xl font-bold mb-4">My Projects</h2>
+      <p class="text-gray-600 mb-8">
+        Here are some of the projects I have worked on. Click on any project to
+        learn more about it.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div class="bg-white p-4 rounded-lg shadow-lg hover-animate">
+          <img
+            alt="SecureX Browser Extension"
+            class="mb-4 rounded-lg"
+            height="200"
+            src="https://storage.googleapis.com/a1aa/image/mnFl_4Mc1QrPNrv_FhOvYqMnBW4zo4hJPo9cPcBkkMg.jpg"
+            width="300"
+          />
+          <h3 class="text-lg font-semibold mb-2">SecureX Browser Extension</h3>
+          <p class="text-gray-600">
+            Developed a Chrome browser extension to classify links as safe or
+            malicious in real-time with 95% accuracy using a machine learning
+            model and an inbuilt API.
+          </p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-lg hover-animate">
+          <img
+            alt="Water Footprint Estimator"
+            class="mb-4 rounded-lg"
+            height="200"
+            src="https://storage.googleapis.com/a1aa/image/ABZLQpACbiuMk5j_sdlGVXOZju6HWPfImR7fOfeKGTc.jpg"
+            width="300"
+          />
+          <h3 class="text-lg font-semibold mb-2">Water Footprint Estimator</h3>
+          <p class="text-gray-600">
+            Created a user-friendly water footprint estimation system to raise
+            awareness of water consumption and encourage eco-conscious behavior.
+          </p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-lg hover-animate">
+          <img
+            alt="Crop Yield Prediction System"
+            class="mb-4 rounded-lg"
+            height="200"
+            src="https://storage.googleapis.com/a1aa/image/0zgFLQkx2ge4vPInF3FRa9SBoT-uB-_7WHXfaXAZXB8.jpg"
+            width="300"
+          />
+          <h3 class="text-lg font-semibold mb-2">
+            Crop Yield Prediction System
+          </h3>
+          <p class="text-gray-600">
+            Developed a crop prediction model using Neural Networks, Random
+            Forest, LSTM, and XGBoost, enhancing accuracy through ensemble
+            techniques.
+          </p>
+        </div>
+      </div>
+    </section>
+    <!-- Skills Section -->
+    <section class="container mx-auto px-4 py-16 fade-in" id="skills">
+      <h2 class="text-2xl font-bold mb-4">My Skills</h2>
+      <p class="text-gray-600 mb-8">
+        I have a diverse set of skills, ranging from design to development.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div class="flex items-center space-x-4 hover-animate">
+          <i class="fab fa-python text-4xl"> </i>
+          <div>
+            <h3 class="text-lg font-semibold">Python</h3>
+            <p class="text-gray-600">Programming Language</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4 hover-animate">
+          <i class="fab fa-js text-4xl"> </i>
+          <div>
+            <h3 class="text-lg font-semibold">JavaScript</h3>
+            <p class="text-gray-600">Frontend Development</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4 hover-animate">
+          <i class="fab fa-node text-4xl"> </i>
+          <div>
+            <h3 class="text-lg font-semibold">Node.js</h3>
+            <p class="text-gray-600">Backend Development</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4 hover-animate">
+          <i class="fab fa-react text-4xl"> </i>
+          <div>
+            <h3 class="text-lg font-semibold">React</h3>
+            <p class="text-gray-600">Frontend Framework</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4 hover-animate">
+          <i class="fab fa-java text-4xl"> </i>
+          <div>
+            <h3 class="text-lg font-semibold">Java</h3>
+            <p class="text-gray-600">Programming Language</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4 hover-animate">
+          <i class="fab fa-php text-4xl"> </i>
+          <div>
+            <h3 class="text-lg font-semibold">PHP</h3>
+            <p class="text-gray-600">Backend Development</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- Experience Section -->
+    <section
+      class="container mx-auto px-4 py-16 fade-in experience-section"
+      id="experience"
+    >
+      <h2 class="text-2xl font-bold mb-4 experience-heading">Experience</h2>
+      <div class="slider experience-content">
+        <div class="bg-white p-4 rounded-lg shadow-lg hover-animate">
+          <h3 class="text-lg font-semibold mb-2">Research Intern</h3>
+          <p class="experience-duration mb-2">
+            SRM University-AP | Jun 2024 – Present
+          </p>
+          <p class="text-gray-600">
+            Developed innovative biometric authentication systems using advanced
+            machine learning and signal processing techniques to analyze brain
+            signals. Conducted rigorous experiments to evaluate and compare the
+            performance of various machine learning algorithms on brainwave
+            data.
+          </p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-lg hover-animate">
+          <h3 class="text-lg font-semibold mb-2">
+            Shot Designer App Developer Intern
+          </h3>
+          <p class="experience-duration mb-2">
+            2LYP, Hybrid (Remote + Onsite) | Jan 2025 - Apr 2025
+          </p>
+          <p class="text-gray-600">
+            Developed a single-page application for a Shot Designer tool using
+            the MERN stack. Implemented a responsive 3D camera rendering view
+            powered by @react-three/fiber and Three.js, ensuring realistic
+            lighting and material effects for scenes.
+          </p>
+        </div>
+      </div>
+    </section>
+    <!-- Contact Section -->
+    <section class="container mx-auto px-4 py-16 fade-in" id="contact">
+      <h2 class="text-2xl font-bold mb-4">Contact Me</h2>
+      <p class="text-gray-600 mb-8">
+        If you have any questions or would like to work with me, feel free to
+        reach out.
+      </p>
+      <form
+        action="mailto:mandalsuraj048@gmail.com"
+        class="bg-white p-8 rounded-lg shadow-lg"
+        method="post"
+        enctype="text/plain"
+      >
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <input
+            class="border border-gray-300 p-2 rounded"
+            name="name"
+            placeholder="Name"
+            type="text"
+          />
+          <input
+            class="border border-gray-300 p-2 rounded"
+            name="email"
+            placeholder="Email"
+            type="email"
+          />
+        </div>
+        <textarea
+          class="border border-gray-300 p-2 rounded w-full mb-4"
+          name="message"
+          placeholder="Message"
+        ></textarea>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded" type="submit">
+          Send
+        </button>
+      </form>
+    </section>
+  </body>
+</html>
