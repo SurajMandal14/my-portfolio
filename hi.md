@@ -119,9 +119,39 @@ Path: /fuzzy_app/output
 
 ---
 
-### 3.2: Write Recipe Code
+### 3.2: Understand Default Code
 
-The Python editor opens. **Replace all code** with this:
+The Python editor opens with **default Dataiku code** like this:
+
+```python
+# -*- coding: utf-8 -*-
+import dataiku
+import pandas as pd, numpy as np
+from dataiku import pandasutils as pdu
+
+# Read recipe inputs
+fuzzy_input1 = dataiku.Folder("3vUV3r4h")  # ← Unique folder ID
+fuzzy_input1_info = fuzzy_input1.get_info()
+fuzzy_inpu2 = dataiku.Folder("6a7dNjwy")   # ← Unique folder ID
+fuzzy_inpu2_info = fuzzy_inpu2.get_info()
+
+# Write recipe outputs
+fuzzy_output = dataiku.Folder("bgd8SJTp")  # ← Unique folder ID
+fuzzy_output_info = fuzzy_output.get_info()
+```
+
+**Important Notes**:
+
+- Dataiku assigns **unique IDs** to each folder (e.g., "3vUV3r4h")
+- These IDs are **stable and globally accessible** - same folder has same ID everywhere
+- Both IDs and names work! IDs are actually more reliable for production code
+- **IDs are better for recipes** because they don't break if folder is renamed
+
+---
+
+### 3.3: Replace with Full Recipe Code
+
+**Delete all default code** and **replace with this complete implementation**:
 
 ```python
 """
@@ -273,8 +303,18 @@ def perform_fuzzy_matching(df1, df2, id_col1, comp_col1, id_col2, comp_col2, thr
 # ====================
 print("Reading input folders...")
 
-input1_folder = dataiku.Folder("input1_folder")
-input2_folder = dataiku.Folder("input2_folder")
+# Option 1: Use Dataiku's generated IDs (RECOMMENDED for recipes)
+input1_folder = dataiku.Folder("3vUV3r4h")  # Replace with your actual ID
+input2_folder = dataiku.Folder("6a7dNjwy")  # Replace with your actual ID
+
+# Option 2: Use folder names (simpler but breaks if folder renamed)
+# input1_folder = dataiku.Folder("input1_folder")
+# input2_folder = dataiku.Folder("input2_folder")
+
+# Option 3: Use recipe inputs/outputs (most flexible for plugins)
+# from dataiku.customrecipe import get_input_names_for_role, get_output_names_for_role
+# input1_name = get_input_names_for_role('input1')[0]
+# input1_folder = dataiku.Folder(input1_name)
 
 # Get list of files in each folder
 input1_files = input1_folder.list_paths_in_partition()
@@ -372,10 +412,41 @@ print("Recipe completed successfully!")
 
 ---
 
-### 3.3: Save Recipe
+### 3.4: Important Code Notes
+
+#### **Folder Names vs Folder IDs**
+
+Dataiku provides **3 ways** to reference folders:
+
+| Method      | Example                                 | Use When                           | Pros                            | Cons                     |
+| ----------- | --------------------------------------- | ---------------------------------- | ------------------------------- | ------------------------ |
+| **By ID**   | `dataiku.Folder("3vUV3r4h")`            | Production code, stable references | Won't break if folder renamed   | Less readable            |
+| **By Name** | `dataiku.Folder("input1_folder")`       | Development, quick scripts         | Easy to read and understand     | Breaks if folder renamed |
+| **By Role** | `get_input_names_for_role('input1')[0]` | Building flexible plugins          | Works with any connected folder | More complex setup       |
+
+**For Application-as-Recipe**: Using **IDs** (Dataiku's default) is actually the most robust choice because:
+
+- IDs are globally unique and stable
+- Recipe won't break if user renames folders
+- Dataiku automatically manages the mapping
+
+**Why Dataiku uses IDs**: They ensure recipes continue working even after folder name changes.
+
+---
+
+### 3.5: Save and Test Recipe
+
+### 3.5: Save and Test Recipe
 
 1. **Click "SAVE"** (top-left)
-2. **Click "RUN"** to test it (will fail initially - that's okay, we need to set variables)
+2. **Upload sample files** to `input1_folder` and `input2_folder`:
+   - Go to Flow → Click folder → "Upload files" → Select Excel/CSV
+3. **Click "RUN"** to test it (may fail initially if variables not set - that's okay!)
+
+**Expected behavior**:
+
+- ✅ If variables are set: Recipe runs, output created
+- ⚠️ If variables not set: Error about missing columns (we'll fix with defaults next)
 
 ---
 
@@ -767,22 +838,69 @@ variables.get('standard', {}).get('id_column_1', 'id')
                                   ↑ Must match variable name exactly
 ```
 
-### Issue 2: "Column not found in dataframe"
+---
 
-**Cause**: User entered wrong column name
+### Issue 2: "Folder ID not found" or "Cannot find folder"
+
+**Cause**: Typo in folder ID or using ID from different Dataiku instance
+
+**Fix Option 1** - Check folder ID in Flow:
+
+1. Go to Flow
+2. Click on folder
+3. Check URL or folder settings for correct ID
+4. Update code with correct ID
+
+**Fix Option 2** - Use the default code Dataiku generated:
+
+```python
+# Use exactly what Dataiku provided in default code
+input1_folder = dataiku.Folder("3vUV3r4h")  # Copy from your default code
+```
+
+**Fix Option 3** - Use folder name if you prefer:
+
+```python
+# This works too, but less robust
+input1_folder = dataiku.Folder("input1_folder")
+```
+
+**Note**: Folder IDs are stable within a Dataiku instance. If copying code between different Dataiku installations, you'll need to update IDs.
+
+---
+
+### Issue 3: "Column not found in dataframe"
+
+### Issue 3: "Column not found in dataframe"
+
+**Cause**: User entered wrong column name or file doesn't have that column
 **Fix**: Add better error message in Python code with available columns list
 
-### Issue 3: "No files found in folder"
+```python
+if ID_COLUMN_1 not in df1.columns:
+    available_cols = ', '.join(df1.columns.tolist())
+    raise ValueError(f"Column '{ID_COLUMN_1}' not found in file 1.\n"
+                     f"Available columns: {available_cols}")
+```
 
-**Cause**: User didn't upload files to folder
-**Fix**: Add check in Python code:
+---
+
+### Issue 4: "No files found in folder"
+
+### Issue 4: "No files found in folder"
+
+**Cause**: User didn't upload files to input folders
+**Fix**: Add validation check in Python code:
 
 ```python
 if not input1_files:
-    raise ValueError("Please upload at least one Excel/CSV file to input1_folder")
+    raise ValueError("No Excel/CSV files found in input1_folder. "
+                     "Please upload at least one file.")
 ```
 
-### Issue 4: "Scenario not executing"
+---
+
+### Issue 5: "Scenario not executing"
 
 **Cause**: Scenario not activated
 **Fix**: Go to Scenarios → Toggle "Active" ON
