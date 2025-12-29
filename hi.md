@@ -119,33 +119,27 @@ Path: /fuzzy_app/output
 
 ---
 
-### 3.2: Understand Default Code
+### 3.2: Understand Default Code & Recipe API
 
-The Python editor opens with **default Dataiku code** like this:
+The Python editor opens with default Dataiku code. **Instead of using folder IDs, we'll use the `recipe` API** (same as your manager's EDA tool):
 
 ```python
-# -*- coding: utf-8 -*-
-import dataiku
-import pandas as pd, numpy as np
-from dataiku import pandasutils as pdu
+# OLD WAY (hardcoded folder IDs):
+# input1_folder = dataiku.Folder("3vUV3r4h")
 
-# Read recipe inputs
-fuzzy_input1 = dataiku.Folder("3vUV3r4h")  # ← Unique folder ID
-fuzzy_input1_info = fuzzy_input1.get_info()
-fuzzy_inpu2 = dataiku.Folder("6a7dNjwy")   # ← Unique folder ID
-fuzzy_inpu2_info = fuzzy_inpu2.get_info()
-
-# Write recipe outputs
-fuzzy_output = dataiku.Folder("bgd8SJTp")  # ← Unique folder ID
-fuzzy_output_info = fuzzy_output.get_info()
+# NEW WAY (dynamic recipe API - RECOMMENDED):
+from dataiku import recipe
+input_folder_1 = recipe.get_input(0)  # First input
+input_folder_2 = recipe.get_input(1)  # Second input
+output_folder = recipe.get_output(0)  # Output
 ```
 
-**Important Notes**:
+**Why this is better**:
 
-- Dataiku assigns **unique IDs** to each folder (e.g., "3vUV3r4h")
-- These IDs are **stable and globally accessible** - same folder has same ID everywhere
-- Both IDs and names work! IDs are actually more reliable for production code
-- **IDs are better for recipes** because they don't break if folder is renamed
+- ✅ No hardcoded IDs or names
+- ✅ Works automatically with whatever folders user connects
+- ✅ Same pattern as your manager's EDA tool
+- ✅ Proper Dataiku recipe best practice
 
 ---
 
@@ -162,6 +156,7 @@ and writes results to output folder.
 """
 
 import dataiku
+from dataiku import recipe
 import pandas as pd
 import numpy as np
 import re
@@ -175,19 +170,17 @@ from io import BytesIO
 warnings.filterwarnings("ignore")
 
 # ====================
-# GET PROJECT VARIABLES (User inputs or defaults)
+# GET CUSTOM VARIABLES (User inputs or defaults)
 # ====================
-client = dataiku.api_client()
-project = client.get_project(dataiku.default_project_key())
-variables = project.get_variables()
+vars = dataiku.get_custom_variables()
 
 # Get user-defined columns or use defaults
-ID_COLUMN_1 = variables.get('standard', {}).get('id_column_1', 'id')
-COMPARISON_COLUMN_1 = variables.get('standard', {}).get('comparison_column_1', 'company_name')
-ID_COLUMN_2 = variables.get('standard', {}).get('id_column_2', 'id')
-COMPARISON_COLUMN_2 = variables.get('standard', {}).get('comparison_column_2', 'company_name')
-THRESHOLD = int(variables.get('standard', {}).get('threshold', 80))
-LOGIC_TYPE = variables.get('standard', {}).get('logic_type', 'Fuzzy Matching')
+ID_COLUMN_1 = vars.get('id_column_1', 'id')
+COMPARISON_COLUMN_1 = vars.get('comparison_column_1', 'company_name')
+ID_COLUMN_2 = vars.get('id_column_2', 'id')
+COMPARISON_COLUMN_2 = vars.get('comparison_column_2', 'company_name')
+THRESHOLD = int(vars.get('threshold', 80))
+LOGIC_TYPE = vars.get('logic_type', 'Fuzzy Matching')
 
 print(f"Configuration:")
 print(f"  Logic: {LOGIC_TYPE}")
@@ -298,68 +291,55 @@ def perform_fuzzy_matching(df1, df2, id_col1, comp_col1, id_col2, comp_col2, thr
         raise Exception(f"Error in fuzzy matching: {str(e)}")
 
 
+def read_file_from_folder(folder):
+    """Read single file from managed folder (CSV or Excel)."""
+    paths = folder.list_paths_in_partition()
+    if not paths:
+        raise ValueError("Input folder is empty. Please upload a file.")
+
+    # Read first file found
+    file_path = paths[0]
+    file_name = os.path.basename(file_path)
+
+    print(f"Reading: {file_name}")
+
+    with folder.get_download_stream(file_path) as f:
+        if file_name.lower().endswith(".csv"):
+            return pd.read_csv(f), file_name
+        elif file_name.lower().endswith((".xlsx", ".xls")):
+            buffer = BytesIO(f.read())
+            if file_name.lower().endswith(".xlsx"):
+                return pd.read_excel(buffer, engine="openpyxl"), file_name
+            else:
+                return pd.read_excel(buffer, engine="xlrd"), file_name
+        else:
+            raise ValueError(f"Unsupported file type: {file_name}. Use CSV or Excel files.")
+
+
 # ====================
-# READ INPUT FOLDERS
+# READ INPUT FOLDERS USING RECIPE API
 # ====================
 print("Reading input folders...")
 
-# Option 1: Use Dataiku's generated IDs (RECOMMENDED for recipes)
-input1_folder = dataiku.Folder("3vUV3r4h")  # Replace with your actual ID
-input2_folder = dataiku.Folder("6a7dNjwy")  # Replace with your actual ID
+# Get inputs dynamically from recipe
+input_folder_1 = recipe.get_input(0)
+input_folder_2 = recipe.get_input(1)
+output_folder = recipe.get_output(0)
 
-# Option 2: Use folder names (simpler but breaks if folder renamed)
-# input1_folder = dataiku.Folder("input1_folder")
-# input2_folder = dataiku.Folder("input2_folder")
+# Read files
+df1, file1_name = read_file_from_folder(input_folder_1)
+df2, file2_name = read_file_from_folder(input_folder_2)
 
-# Option 3: Use recipe inputs/outputs (most flexible for plugins)
-# from dataiku.customrecipe import get_input_names_for_role, get_output_names_for_role
-# input1_name = get_input_names_for_role('input1')[0]
-# input1_folder = dataiku.Folder(input1_name)
-
-# Get list of files in each folder
-input1_files = input1_folder.list_paths_in_partition()
-input2_files = input2_folder.list_paths_in_partition()
-
-print(f"Input 1 files: {input1_files}")
-print(f"Input 2 files: {input2_files}")
-
-# Read first Excel file from each folder
-df1 = None
-df2 = None
-
-for file_path in input1_files:
-    if file_path.endswith(('.xlsx', '.xls', '.csv')):
-        print(f"Reading file 1: {file_path}")
-        with input1_folder.get_download_stream(file_path) as stream:
-            if file_path.endswith('.csv'):
-                df1 = pd.read_csv(stream)
-            else:
-                df1 = pd.read_excel(stream, engine='openpyxl')
-        break
-
-for file_path in input2_files:
-    if file_path.endswith(('.xlsx', '.xls', '.csv')):
-        print(f"Reading file 2: {file_path}")
-        with input2_folder.get_download_stream(file_path) as stream:
-            if file_path.endswith('.csv'):
-                df2 = pd.read_csv(stream)
-            else:
-                df2 = pd.read_excel(stream, engine='openpyxl')
-        break
-
-if df1 is None:
-    raise ValueError("No Excel/CSV file found in input1_folder")
+print(f"Dataset 1 ({file1_name}): {df1.shape}")
+print(f"Dataset 2 ({file2_name}): {df2.shape}")
 
 # For deduplication, use same file for both
 if LOGIC_TYPE == 'De-duplication':
-    df2 = df1
+    df2 = df1.copy()
+    file2_name = file1_name
     ID_COLUMN_2 = ID_COLUMN_1
     COMPARISON_COLUMN_2 = COMPARISON_COLUMN_1
-elif df2 is None:
-    raise ValueError("No Excel/CSV file found in input2_folder")
-
-print(f"Dataset 1 shape: {df1.shape}")
-print(f"Dataset 2 shape: {df2.shape}")
+    print("Mode: De-duplication (using file 1 for both sides)")
 
 # ====================
 # VALIDATE COLUMNS
@@ -402,38 +382,39 @@ print("Writing output...")
 output_folder = dataiku.Folder("output_folder")
 
 # Write as Excel
-output_filename = f"fuzzy_results_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-with output_folder.get_writer(output_filename) as writer:
-    result_df.to_excel(writer, index=False, engine='openpyxl')
+# Generate output filename with timestamp
+timestamp = pd.Timestamp.now().strftime('%m%d%Y_%H%M')
+output_filename = f"fuzzy_results_{timestamp}.xlsx"
 
-print(f"Results written to: {output_filename}")
-print("Recipe completed successfully!")
-```
+# Write Excel file to output folder
+buffer = BytesIO()
+result_df.to_excel(buffer, index=False, engine='openpyxl')
+buffer.seek(0)
+output_folder.upload_stream(output_filename, buffer)
 
----
+print(f"✓ Results written to: {output_filename}")
+print(f"✓ Found {len(result_df)} matches")
+print("✓
 
 ### 3.4: Important Code Notes
 
 #### **Folder Names vs Folder IDs**
+Key Differences from Old Approach
 
-Dataiku provides **3 ways** to reference folders:
+**What Changed**:
 
-| Method      | Example                                 | Use When                           | Pros                            | Cons                     |
-| ----------- | --------------------------------------- | ---------------------------------- | ------------------------------- | ------------------------ |
-| **By ID**   | `dataiku.Folder("3vUV3r4h")`            | Production code, stable references | Won't break if folder renamed   | Less readable            |
-| **By Name** | `dataiku.Folder("input1_folder")`       | Development, quick scripts         | Easy to read and understand     | Breaks if folder renamed |
-| **By Role** | `get_input_names_for_role('input1')[0]` | Building flexible plugins          | Works with any connected folder | More complex setup       |
+| Old Approach | New Approach (Recipe API) |
+|-------------|---------------------------|
+| `dataiku.Folder("folder_id")` | `recipe.get_input(0)` |
+| `client.get_project().get_variables()` | `dataiku.get_custom_variables()` |
+| `output_folder.get_writer()` | `output_folder.upload_stream()` |
+| Hardcoded folder references | Dynamic recipe connections |
 
-**For Application-as-Recipe**: Using **IDs** (Dataiku's default) is actually the most robust choice because:
-
-- IDs are globally unique and stable
-- Recipe won't break if user renames folders
-- Dataiku automatically manages the mapping
-
-**Why Dataiku uses IDs**: They ensure recipes continue working even after folder name changes.
-
----
-
+**Benefits**:
+- Same pattern as your manager's EDA tool
+- No folder IDs or names to worry about
+- Works with any folders user connects
+- Cleaner, more maintainable code
 ### 3.5: Save and Test Recipe
 
 ### 3.5: Save and Test Recipe
@@ -469,55 +450,67 @@ Click **"+ ADD"** for each variable:
 #### Variable 1: Logic Type
 
 ```
+
 Name: logic_type
 Type: String
 Default Value: Fuzzy Matching
 Description: Type of matching (Fuzzy Matching or De-duplication)
+
 ```
 
 #### Variable 2: ID Column 1
 
 ```
+
 Name: id_column_1
 Type: String
 Default Value: id
 Description: ID column name in first file (default: id)
+
 ```
 
 #### Variable 3: Comparison Column 1
 
 ```
+
 Name: comparison_column_1
 Type: String
 Default Value: company_name
 Description: Column to compare in first file (default: company_name)
+
 ```
 
 #### Variable 4: ID Column 2
 
 ```
+
 Name: id_column_2
 Type: String
 Default Value: id
 Description: ID column name in second file (default: id)
+
 ```
 
 #### Variable 5: Comparison Column 2
 
 ```
+
 Name: comparison_column_2
 Type: String
 Default Value: company_name
 Description: Column to compare in second file (default: company_name)
+
 ```
 
 #### Variable 6: Threshold
 
 ```
+
 Name: threshold
 Type: String (or Integer)
 Default Value: 80
 Description: Similarity threshold percentage (0-100)
+
 ```
 
 **Why**: These variables act as user inputs when the recipe is instantiated.
@@ -550,10 +543,12 @@ Description: Similarity threshold percentage (0-100)
 
 4. **Configure**:
 
-   ```
-   What to build: output_folder
-   Build mode: Force rebuild
-   ```
+```
+
+What to build: output_folder
+Build mode: Force rebuild
+
+```
 
 5. **Click "SAVE"**
 
@@ -589,7 +584,7 @@ Or you can directly run the recipe:
 
 2. **Dropdown menu** → **"More options"** → **"Application Designer"**
 
-   (Or might be under **"Settings"** → **"Application Designer"**)
+(Or might be under **"Settings"** → **"Application Designer"**)
 
 3. **Choose**: "Convert to Application-as-Recipe"
 
@@ -600,18 +595,20 @@ Or you can directly run the recipe:
 ### 6.2: Configure Application Header
 
 ```
+
 ┌─────────────────────────────────────┐
-│ Application Header                  │
+│ Application Header │
 ├─────────────────────────────────────┤
-│ Recipe Name:                        │
-│ [Fuzzy Matching Tool]               │
-│                                     │
-│ Description:                        │
+│ Recipe Name: │
+│ [Fuzzy Matching Tool] │
+│ │
+│ Description: │
 │ [Intelligent fuzzy matching and...] │
-│                                     │
-│ Permission:                         │
-│ [✓] All users can instantiate       │
+│ │
+│ Permission: │
+│ [✓] All users can instantiate │
 └─────────────────────────────────────┘
+
 ```
 
 ---
@@ -619,32 +616,34 @@ Or you can directly run the recipe:
 ### 6.3: Configure Recipe Definition
 
 ```
+
 ┌─────────────────────────────────────┐
-│ Recipe Definition                   │
+│ Recipe Definition │
 ├─────────────────────────────────────┤
-│ Icon: icon-search                   │
-│ Category: Data Quality              │
-│                                     │
-│ Inputs:                             │
-│   [+ Add Input]                     │
-│   Name: input1                      │
-│   Label: First Input Folder         │
-│   Type: Managed Folder              │
-│   Maps to: input1_folder            │
-│                                     │
-│   [+ Add Input]                     │
-│   Name: input2                      │
-│   Label: Second Input Folder        │
-│   Type: Managed Folder              │
-│   Maps to: input2_folder            │
-│                                     │
-│ Outputs:                            │
-│   [+ Add Output]                    │
-│   Name: output                      │
-│   Label: Matched Results            │
-│   Type: Managed Folder              │
-│   Maps to: output_folder            │
+│ Icon: icon-search │
+│ Category: Data Quality │
+│ │
+│ Inputs: │
+│ [+ Add Input] │
+│ Name: input1 │
+│ Label: First Input Folder │
+│ Type: Managed Folder │
+│ Maps to: input1_folder │
+│ │
+│ [+ Add Input] │
+│ Name: input2 │
+│ Label: Second Input Folder │
+│ Type: Managed Folder │
+│ Maps to: input2_folder │
+│ │
+│ Outputs: │
+│ [+ Add Output] │
+│ Name: output │
+│ Label: Matched Results │
+│ Type: Managed Folder │
+│ Maps to: output_folder │
 └─────────────────────────────────────┘
+
 ```
 
 ---
@@ -652,12 +651,14 @@ Or you can directly run the recipe:
 ### 6.4: Link Scenario
 
 ```
+
 ┌─────────────────────────────────────┐
-│ Scenario                            │
+│ Scenario │
 ├─────────────────────────────────────┤
-│ Select scenario:                    │
-│ [build_fuzzy_results ▼]             │
+│ Select scenario: │
+│ [build_fuzzy_results ▼] │
 └─────────────────────────────────────┘
+
 ```
 
 **This scenario runs when users execute the recipe.**
@@ -669,50 +670,52 @@ Or you can directly run the recipe:
 Map your project variables to user-facing form:
 
 ```
+
 ┌─────────────────────────────────────────────────────┐
-│ Settings                                            │
+│ Settings │
 ├─────────────────────────────────────────────────────┤
-│ [+ Add Setting]                                     │
-│                                                     │
-│ Setting 1:                                          │
-│   Variable: logic_type                              │
-│   Label: Matching Logic                            │
-│   Type: Select                                      │
-│   Options: [Fuzzy Matching, De-duplication]        │
-│   Default: Fuzzy Matching                          │
-│                                                     │
-│ Setting 2:                                          │
-│   Variable: id_column_1                             │
-│   Label: File 1 - ID Column                        │
-│   Type: Text                                        │
-│   Default: id                                       │
-│                                                     │
-│ Setting 3:                                          │
-│   Variable: comparison_column_1                     │
-│   Label: File 1 - Comparison Column                │
-│   Type: Text                                        │
-│   Default: company_name                            │
-│                                                     │
-│ Setting 4:                                          │
-│   Variable: id_column_2                             │
-│   Label: File 2 - ID Column                        │
-│   Type: Text                                        │
-│   Default: id                                       │
-│                                                     │
-│ Setting 5:                                          │
-│   Variable: comparison_column_2                     │
-│   Label: File 2 - Comparison Column                │
-│   Type: Text                                        │
-│   Default: company_name                            │
-│                                                     │
-│ Setting 6:                                          │
-│   Variable: threshold                               │
-│   Label: Similarity Threshold (%)                  │
-│   Type: Integer                                     │
-│   Default: 80                                       │
-│   Min: 0                                            │
-│   Max: 100                                          │
+│ [+ Add Setting] │
+│ │
+│ Setting 1: │
+│ Variable: logic_type │
+│ Label: Matching Logic │
+│ Type: Select │
+│ Options: [Fuzzy Matching, De-duplication] │
+│ Default: Fuzzy Matching │
+│ │
+│ Setting 2: │
+│ Variable: id_column_1 │
+│ Label: File 1 - ID Column │
+│ Type: Text │
+│ Default: id │
+│ │
+│ Setting 3: │
+│ Variable: comparison_column_1 │
+│ Label: File 1 - Comparison Column │
+│ Type: Text │
+│ Default: company_name │
+│ │
+│ Setting 4: │
+│ Variable: id_column_2 │
+│ Label: File 2 - ID Column │
+│ Type: Text │
+│ Default: id │
+│ │
+│ Setting 5: │
+│ Variable: comparison_column_2 │
+│ Label: File 2 - Comparison Column │
+│ Type: Text │
+│ Default: company_name │
+│ │
+│ Setting 6: │
+│ Variable: threshold │
+│ Label: Similarity Threshold (%) │
+│ Type: Integer │
+│ Default: 80 │
+│ Min: 0 │
+│ Max: 100 │
 └─────────────────────────────────────────────────────┘
+
 ```
 
 **Why**: These become form fields users fill when instantiating the recipe.
@@ -741,31 +744,33 @@ Map your project variables to user-facing form:
 
 4. **Configuration form appears**:
 
-   ```
-   ┌─────────────────────────────────────────────────────┐
-   │ Fuzzy Matching Tool                                 │
-   ├─────────────────────────────────────────────────────┤
-   │ Inputs:                                             │
-   │   First Input Folder:  [Select Folder ▼]           │
-   │   Second Input Folder: [Select Folder ▼]           │
-   │                                                     │
-   │ Output:                                             │
-   │   Matched Results:     [new_folder_name]           │
-   │                                                     │
-   │ Settings:                                           │
-   │   Matching Logic: [Fuzzy Matching ▼]               │
-   │                                                     │
-   │   File 1 - ID Column: [customer_id]                │
-   │   File 1 - Comparison Column: [name]               │
-   │                                                     │
-   │   File 2 - ID Column: [vendor_id]                  │
-   │   File 2 - Comparison Column: [company]            │
-   │                                                     │
-   │   Similarity Threshold: [85]                       │
-   │                                                     │
-   │              [CREATE RECIPE]                        │
-   └─────────────────────────────────────────────────────┘
-   ```
+```
+
+┌─────────────────────────────────────────────────────┐
+│ Fuzzy Matching Tool │
+├─────────────────────────────────────────────────────┤
+│ Inputs: │
+│ First Input Folder: [Select Folder ▼] │
+│ Second Input Folder: [Select Folder ▼] │
+│ │
+│ Output: │
+│ Matched Results: [new_folder_name] │
+│ │
+│ Settings: │
+│ Matching Logic: [Fuzzy Matching ▼] │
+│ │
+│ File 1 - ID Column: [customer_id] │
+│ File 1 - Comparison Column: [name] │
+│ │
+│ File 2 - ID Column: [vendor_id] │
+│ File 2 - Comparison Column: [company] │
+│ │
+│ Similarity Threshold: [85] │
+│ │
+│ [CREATE RECIPE] │
+└─────────────────────────────────────────────────────┘
+
+```
 
 5. **User fills form** → **Clicks "CREATE RECIPE"**
 
@@ -780,16 +785,18 @@ Map your project variables to user-facing form:
 ## 📊 Visual Flow Diagram
 
 ```
+
 USER'S PROJECT:
 
 [Their Folder 1] ──┐
-                   ├──→ [Fuzzy Matching Tool] ──→ [Results Folder]
-[Their Folder 2] ──┘         (Your Recipe)           (Excel file)
-                              ↓
-                        [Build Scenario Runs]
-                              ↓
-                        [Python Code Executes]
-```
+├──→ [Fuzzy Matching Tool] ──→ [Results Folder]
+[Their Folder 2] ──┘ (Your Recipe) (Excel file)
+↓
+[Build Scenario Runs]
+↓
+[Python Code Executes]
+
+````
 
 ---
 
@@ -836,7 +843,7 @@ USER'S PROJECT:
 ```python
 variables.get('standard', {}).get('id_column_1', 'id')
                                   ↑ Must match variable name exactly
-```
+````
 
 ---
 
@@ -846,32 +853,16 @@ variables.get('standard', {}).get('id_column_1', 'id')
 
 **Fix Option 1** - Check folder ID in Flow:
 
-1. Go to Flow
-2. Click on folder
-3. Check URL or folder settings for correct ID
-4. Update code with correct ID
+1. Go to FlowRecipe inputs not found"
 
-**Fix Option 2** - Use the default code Dataiku generated:
+**Cause**: Recipe not properly connected to folders
 
-```python
-# Use exactly what Dataiku provided in default code
-input1_folder = dataiku.Folder("3vUV3r4h")  # Copy from your default code
-```
+**Fix**:
 
-**Fix Option 3** - Use folder name if you prefer:
-
-```python
-# This works too, but less robust
-input1_folder = dataiku.Folder("input1_folder")
-```
-
-**Note**: Folder IDs are stable within a Dataiku instance. If copying code between different Dataiku installations, you'll need to update IDs.
-
----
-
-### Issue 3: "Column not found in dataframe"
-
-### Issue 3: "Column not found in dataframe"
+1. In Flow, click on your recipe
+2. Check "Inputs" and "Outputs" tabs
+3. Ensure 2 input folders and 1 output folder are connected
+4. Recipe API automatically uses whatever is connected - no code changes needed!
 
 **Cause**: User entered wrong column name or file doesn't have that column
 **Fix**: Add better error message in Python code with available columns list
@@ -902,12 +893,15 @@ if not input1_files:
 
 ### Issue 5: "Scenario not executing"
 
-**Cause**: Scenario not activated
-**Fix**: Go to Scenarios → Toggle "Active" ON
+**Fix**: The code already includes helpful error messages:
 
----
+```python
+if ID_COLUMN_1 not in df1.columns:
+    raise ValueError(f"Column '{ID_COLUMN_1}' not found in file 1. "
+                     f"Available: {list(df1.columns)}")
+```
 
-## 💡 Pro Tips
+Tell user to check their custom variable values match actual column names.
 
 ### Tip 1: Support Multiple File Formats
 
@@ -917,18 +911,21 @@ Current code supports `.xlsx`, `.xls`, `.csv` - you can add more:
 if file_path.endswith(('.xlsx', '.xls', '.csv', '.parquet')):
 ```
 
-### Tip 2: Process Multiple Files
-
-Modify code to loop through all files and concatenate:
+**Fix**: The code already handles this with `read_file_from_folder()`:
 
 ```python
-dfs = []
-for file_path in input1_files:
-    if file_path.endswith('.xlsx'):
-        df = pd.read_excel(...)
-        dfs.append(df)
-df1 = pd.concat(dfs, ignore_index=True)
+if not paths:
+    raise ValueError("Input folder is empty. Please upload a file.")
 ```
+
+User needs to upload files to connected folders before running recipe. = []
+for file_path in input1_files:
+if file_path.endswith('.xlsx'):
+df = pd.read_excel(...)
+dfs.append(df)
+df1 = pd.concat(dfs, ignore_index=True)
+
+````
 
 ### Tip 3: Add Validation
 
@@ -939,7 +936,7 @@ if df1.empty:
     raise ValueError("Input file 1 is empty")
 if len(df1) > 100000:
     print("Warning: Large dataset, may take time")
-```
+````
 
 ### Tip 4: Export Multiple Formats
 
